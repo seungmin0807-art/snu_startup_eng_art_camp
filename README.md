@@ -22,8 +22,26 @@ npm run dev
 
 손동작은 배경의 이동이나 확대·축소에 사용되지 않습니다.
 
-## GitHub 협업 및 Sites 재배포
+## GitHub 협업 및 Sites 배포
 
-이 소스를 GitHub에 올릴 때 `.openai/hosting.json`을 반드시 추적 파일로 함께 커밋합니다. 협업자는 저장소를 받은 뒤 프로젝트 루트에서 Sites 스킬을 사용해 배포합니다.
+이 프로젝트의 GitHub 협업자들은 Site 소유자와 서로 다른 ChatGPT 워크스페이스를 사용합니다. GitHub collaborator 권한과 Sites 편집 권한은 별개이며, Sites 편집자는 같은 워크스페이스의 활성 멤버만 지정할 수 있습니다. 따라서 협업자가 기존 `MY WINDOW` Sites 프로젝트를 직접 수정하거나 같은 공개 URL에 배포하는 방식은 사용하지 않습니다.
 
-동일한 Sites 프로젝트에 접근 권한이 있다면 기존 `.openai/hosting.json`을 유지한 배포는 새 사이트를 만들지 않고 같은 공개 URL을 업데이트합니다. 같은 링크를 계속 사용하려면 이 파일을 삭제하거나 Sites 설정을 다시 초기화하지 마세요.
+### 협업자 작업 순서
+
+1. 이 저장소를 clone 또는 pull합니다.
+2. 로컬에서 `npm install`, `npm run dev`로 수정하고 확인합니다.
+3. 수정 사항을 GitHub에 push하고 PR을 만들거나, 합의된 브랜치에 반영합니다.
+4. 기존 공개 사이트의 배포는 Site 소유자에게 요청합니다.
+
+### Site 소유자 배포 순서
+
+1. GitHub의 승인된 최신 변경 사항을 pull합니다.
+2. 빌드와 주요 동작을 확인합니다.
+3. 프로젝트 루트에서 Sites 스킬을 사용해 기존 `MY WINDOW` 프로젝트에 저장·배포합니다.
+4. 기존 공개 URL이 정상적으로 갱신됐는지 확인합니다.
+
+`.openai/hosting.json`에는 기존 Site와 연결되는 정보가 있으므로 `main` 브랜치에서 삭제하거나 다시 초기화하지 마세요. 이 파일은 같은 공개 URL을 유지하기 위해 Site 소유자가 사용합니다.
+
+협업자가 자기 워크스페이스에서 온라인 미리보기가 꼭 필요하다면 별도의 복사본에서 새 Site를 만들어야 합니다. 이 경우에는 다른 URL이 생성되며, 개인 배포를 위해 변경한 `.openai/hosting.json`을 원본 저장소의 `main` 브랜치에 커밋하면 안 됩니다. 일반적인 확인은 로컬 실행을 우선합니다.
+
+참고: [OpenAI Sites 공식 문서](https://learn.chatgpt.com/docs/sites)
