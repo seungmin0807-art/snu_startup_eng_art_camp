@@ -278,7 +278,6 @@ export default function DigitalWindow() {
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerDownRef.current = true;
     const point = pointFromEvent(event);
-    createLight(point.x, point.y);
     wipeFog(point.x, point.y);
   };
 
