@@ -13,7 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://my-window-forest-live.seungmin0807.chatgpt.site',
+  ),
   title: 'MY WINDOW — 손끝으로 만드는 나만의 숲',
   description: '빛, 비, 서리, 바람과 번개를 한 창 안에서 손끝으로 만드는 인터랙티브 숲',
   icons: { icon: '/favicon.png' },

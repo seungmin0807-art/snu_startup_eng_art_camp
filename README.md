@@ -2,6 +2,8 @@
 
 사용자가 제공한 숲 영상을 배경으로 MediaPipe 손 인식과 마이크 입력을 사용하는 인터랙티브 디지털 창문입니다. 화면에는 효과 버튼이나 손동작 안내 UI가 없으며, `OPEN THIS WINDOW`를 누르면 카메라와 마이크가 시작되고 모든 효과가 즉시 활성화됩니다.
 
+공개 사이트: <https://my-window-forest-live.seungmin0807.chatgpt.site>
+
 ## 로컬 실행
 
 ```bash
