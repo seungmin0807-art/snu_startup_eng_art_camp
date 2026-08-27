@@ -33,7 +33,7 @@ const rainDrops = Array.from({ length: 104 }, (_, index) => ({
   delay: -((index * 0.173) % 3.4),
   duration: 1.15 + ((index * 17) % 76) / 100,
   scale: 0.55 + ((index * 29) % 51) / 100,
-  opacity: 0.5 + ((index * 13) % 39) / 100,
+  opacity: 0.58 + ((index * 13) % 39) / 100,
   drift: -5 - ((index * 19) % 12),
 }));
 
@@ -371,14 +371,18 @@ export default function DigitalWindow() {
                 '--rain-drift': `${drop.drift}vw`,
               } as CSSProperties,
             })).map((drop) => (
-              <img
+              <span
                 key={drop.id}
                 className="rain-drop"
-                src="/media/rain-drop.png"
-                alt=""
-                draggable={false}
                 style={drop.style}
-              />
+              >
+                <img
+                  className="rain-drop-raster"
+                  src="/media/rain-drop.png"
+                  alt=""
+                  draggable={false}
+                />
+              </span>
             ))}
           </div>
         )}

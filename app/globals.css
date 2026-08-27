@@ -83,11 +83,11 @@ button {
   position: absolute;
   top: -16vh;
   left: var(--rain-x);
-  width: clamp(12px, 0.9vw, 18px);
-  height: auto;
-  max-width: none;
+  display: block;
+  width: clamp(2px, 0.17vw, 3.5px);
+  height: clamp(16px, 1.55vw, 24px);
+  overflow: hidden;
   opacity: 0;
-  filter: blur(0.12px) brightness(1.25);
   mix-blend-mode: screen;
   transform-origin: center;
   animation-name: rain-fall;
@@ -96,6 +96,19 @@ button {
   animation-timing-function: linear;
   animation-iteration-count: infinite;
   will-change: transform, opacity;
+}
+
+.rain-drop-raster {
+  position: absolute;
+  left: -152%;
+  top: -60%;
+  display: block;
+  width: 409%;
+  height: 223%;
+  max-width: none;
+  object-fit: fill;
+  filter: brightness(1.72) contrast(1.08);
+  pointer-events: none;
 }
 
 .wind-raster-layer {

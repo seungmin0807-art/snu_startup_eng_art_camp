@@ -9,7 +9,8 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
-    "lint": "eslint app --ignore-pattern dist --ignore-pattern .next"
+    "lint": "eslint app --ignore-pattern dist --ignore-pattern .next",
+    "test": "node --experimental-strip-types --test app/handGesture.test.ts app/victoryHold.test.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^1.0.1",

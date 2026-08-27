@@ -1,5 +1,5 @@
 export const VICTORY_HOLD_DURATION_MS = 3_000;
-export const VICTORY_CLASSIFIER_GAP_TOLERANCE_MS = 280;
+export const VICTORY_CLASSIFIER_GAP_TOLERANCE_MS = 500;
 export const VICTORY_REARM_DELAY_MS = 800;
 
 export type VictoryHoldPhase = "armed" | "latched";

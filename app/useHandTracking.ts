@@ -1,10 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { HandLandmarker, NormalizedLandmark } from '@mediapipe/tasks-vision';
+import type { GestureRecognizer, NormalizedLandmark } from '@mediapipe/tasks-vision';
+import {
+  classifyHandGesture,
+  selectSampleHand,
+  type HandGesture,
+} from './handGesture';
+
+export type { HandGesture } from './handGesture';
 
 export type TrackingStatus = 'idle' | 'loading' | 'active' | 'error';
-export type HandGesture = 'none' | 'point' | 'pinch' | 'open' | 'victory';
 
 export type HandSample = {
   x: number;
@@ -88,12 +94,12 @@ function friendlyCameraError(cause: unknown) {
 
 export function useHandTracking({ onSample, onBreath, onHands }: HandTrackingOptions) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const trackerRef = useRef<HandLandmarker | null>(null);
+  const trackerRef = useRef<GestureRecognizer | null>(null);
   const videoStreamRef = useRef<MediaStream | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const frameRef = useRef<number | null>(null);
-  const pinchRef = useRef(false);
+  const pinchByHandRef = useRef(new Map<string, boolean>());
   const smoothedRef = useRef<{ x: number; y: number } | null>(null);
   const callbacksRef = useRef({ onSample, onBreath, onHands });
   const requestIdRef = useRef(0);
@@ -117,7 +123,7 @@ export function useHandTracking({ onSample, onBreath, onHands }: HandTrackingOpt
     audioContextRef.current = null;
     trackerRef.current?.close();
     trackerRef.current = null;
-    pinchRef.current = false;
+    pinchByHandRef.current.clear();
     smoothedRef.current = null;
     callbacksRef.current.onSample(null);
     callbacksRef.current.onHands?.([]);
@@ -138,7 +144,7 @@ export function useHandTracking({ onSample, onBreath, onHands }: HandTrackingOpt
         throw new Error('이 브라우저에서는 카메라를 사용할 수 없어요.');
       }
 
-      const [{ FilesetResolver, HandLandmarker }, videoStream] = await Promise.all([
+      const [{ FilesetResolver, GestureRecognizer }, videoStream] = await Promise.all([
         import('@mediapipe/tasks-vision'),
         getUserMediaWithTimeout({
           video: {
@@ -156,16 +162,20 @@ export function useHandTracking({ onSample, onBreath, onHands }: HandTrackingOpt
       }
 
       const vision = await FilesetResolver.forVisionTasks('/mediapipe/wasm');
-      const tracker = await HandLandmarker.createFromOptions(vision, {
+      const tracker = await GestureRecognizer.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: '/models/hand_landmarker.task',
+          modelAssetPath: '/models/gesture_recognizer.task',
           delegate: 'CPU',
         },
         runningMode: 'VIDEO',
         numHands: 2,
-        minHandDetectionConfidence: 0.6,
-        minHandPresenceConfidence: 0.6,
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
         minTrackingConfidence: 0.5,
+        cannedGesturesClassifierOptions: {
+          maxResults: 1,
+          scoreThreshold: 0.35,
+        },
       });
 
       if (!videoRef.current || requestIdRef.current !== requestId) {
@@ -201,8 +211,7 @@ export function useHandTracking({ onSample, onBreath, onHands }: HandTrackingOpt
         ) {
           lastVideoTime = video.currentTime;
           lastDetectionAt = timestamp;
-          const result = activeTracker.detectForVideo(video, timestamp);
-          const landmarks = result.landmarks[0];
+          const result = activeTracker.recognizeForVideo(video, timestamp);
 
           const trackedHands = result.landmarks.map((handLandmarks, index) => {
             const mirroredLandmarks = handLandmarks.map((landmark) => ({
@@ -248,39 +257,34 @@ export function useHandTracking({ onSample, onBreath, onHands }: HandTrackingOpt
 
           callbacksRef.current.onHands?.(trackedHands);
 
-          if (landmarks) {
-            const handScale = Math.max(distance(landmarks[0], landmarks[9]), 0.03);
-            const pinchRatio = distance(landmarks[4], landmarks[8]) / handScale;
+          const activeHandKeys = new Set<string>();
+          const classifiedHands = result.landmarks.map((handLandmarks, index) => {
+            const category = result.handedness[index]?.[0]?.categoryName;
+            const handKey = category === 'Left' || category === 'Right'
+              ? category
+              : `Unknown-${index}`;
+            activeHandKeys.add(handKey);
+            const classification = classifyHandGesture(
+              handLandmarks,
+              result.gestures[index]?.[0],
+              pinchByHandRef.current.get(handKey) ?? false,
+            );
+            pinchByHandRef.current.set(handKey, classification.pinchLatched);
+            return {
+              ...classification,
+              handKey,
+              landmarks: handLandmarks,
+            };
+          });
 
-            if (pinchRef.current) {
-              pinchRef.current = pinchRatio < 0.4;
-            } else {
-              pinchRef.current = pinchRatio < 0.28;
-            }
+          for (const handKey of pinchByHandRef.current.keys()) {
+            if (!activeHandKeys.has(handKey)) pinchByHandRef.current.delete(handKey);
+          }
 
-            const indexOpen = fingerExtended(landmarks, 8, 6);
-            const middleOpen = fingerExtended(landmarks, 12, 10);
-            const ringOpen = fingerExtended(landmarks, 16, 14);
-            const pinkyOpen = fingerExtended(landmarks, 20, 18);
-            const indexExtension = fingerExtensionRatio(landmarks, 8, 6);
-            const middleExtension = fingerExtensionRatio(landmarks, 12, 10);
-            const ringExtension = fingerExtensionRatio(landmarks, 16, 14);
-            const pinkyExtension = fingerExtensionRatio(landmarks, 20, 18);
-            const victorySeparated = distance(landmarks[8], landmarks[12]) > handScale * 0.24;
-            const victoryPose =
-              indexExtension > 1.06 &&
-              middleExtension > 1.06 &&
-              ringExtension < 1.18 &&
-              pinkyExtension < 1.18 &&
-              victorySeparated;
-
-            let gesture: HandGesture = 'none';
-            if (pinchRef.current) gesture = 'pinch';
-            else if (victoryPose) gesture = 'victory';
-            else if (indexOpen && middleOpen && ringOpen && pinkyOpen) gesture = 'open';
-            else if (indexOpen && !middleOpen && !ringOpen && !pinkyOpen) gesture = 'point';
-
-            const rawPoint = pinchRef.current
+          const selectedHand = selectSampleHand(classifiedHands);
+          if (selectedHand) {
+            const { gesture, landmarks } = selectedHand;
+            const rawPoint = gesture === 'pinch'
               ? {
                   x: 1 - (landmarks[4].x + landmarks[8].x) / 2,
                   y: (landmarks[4].y + landmarks[8].y) / 2,
@@ -302,6 +306,7 @@ export function useHandTracking({ onSample, onBreath, onHands }: HandTrackingOpt
               gesture,
             });
           } else {
+            pinchByHandRef.current.clear();
             callbacksRef.current.onSample(null);
             callbacksRef.current.onHands?.([]);
             smoothedRef.current = null;
