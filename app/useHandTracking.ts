@@ -20,11 +20,18 @@ type HandTrackingOptions = {
 const distance = (a: NormalizedLandmark, b: NormalizedLandmark) =>
   Math.hypot(a.x - b.x, a.y - b.y);
 
+const fingerExtensionRatio = (
+  landmarks: NormalizedLandmark[],
+  tipIndex: number,
+  pipIndex: number,
+) => distance(landmarks[tipIndex], landmarks[0]) /
+  Math.max(distance(landmarks[pipIndex], landmarks[0]), 0.001);
+
 const fingerExtended = (
   landmarks: NormalizedLandmark[],
   tipIndex: number,
   pipIndex: number,
-) => distance(landmarks[tipIndex], landmarks[0]) > distance(landmarks[pipIndex], landmarks[0]) * 1.14;
+) => fingerExtensionRatio(landmarks, tipIndex, pipIndex) > 1.14;
 
 function getUserMediaWithTimeout(constraints: MediaStreamConstraints, timeoutMs: number) {
   const request = navigator.mediaDevices.getUserMedia(constraints);
@@ -199,11 +206,22 @@ export function useHandTracking({ onSample, onBreath }: HandTrackingOptions) {
             const middleOpen = fingerExtended(landmarks, 12, 10);
             const ringOpen = fingerExtended(landmarks, 16, 14);
             const pinkyOpen = fingerExtended(landmarks, 20, 18);
+            const indexExtension = fingerExtensionRatio(landmarks, 8, 6);
+            const middleExtension = fingerExtensionRatio(landmarks, 12, 10);
+            const ringExtension = fingerExtensionRatio(landmarks, 16, 14);
+            const pinkyExtension = fingerExtensionRatio(landmarks, 20, 18);
+            const victorySeparated = distance(landmarks[8], landmarks[12]) > handScale * 0.24;
+            const victoryPose =
+              indexExtension > 1.06 &&
+              middleExtension > 1.06 &&
+              ringExtension < 1.18 &&
+              pinkyExtension < 1.18 &&
+              victorySeparated;
 
             let gesture: HandGesture = 'none';
             if (pinchRef.current) gesture = 'pinch';
+            else if (victoryPose) gesture = 'victory';
             else if (indexOpen && middleOpen && ringOpen && pinkyOpen) gesture = 'open';
-            else if (indexOpen && middleOpen && !ringOpen && !pinkyOpen) gesture = 'victory';
             else if (indexOpen && !middleOpen && !ringOpen && !pinkyOpen) gesture = 'point';
 
             const rawPoint = pinchRef.current

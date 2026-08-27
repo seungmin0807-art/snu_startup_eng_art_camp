@@ -16,17 +16,21 @@ import {
   type HandSample,
   useHandTracking,
 } from './useHandTracking';
+import {
+  advanceVictoryHold,
+  createVictoryHoldState,
+} from './victoryHold';
 
 type PositionedEffect = { id: number; x: number; y: number };
 type LightningStrike = { id: number; x: number };
 
-const rainDrops = Array.from({ length: 58 }, (_, index) => ({
+const rainDrops = Array.from({ length: 104 }, (_, index) => ({
   id: index,
   x: (index * 41 + (index % 5) * 7) % 104,
   delay: -((index * 0.173) % 3.4),
-  duration: 0.82 + ((index * 17) % 74) / 100,
-  scale: 0.38 + ((index * 29) % 63) / 100,
-  opacity: 0.22 + ((index * 13) % 58) / 100,
+  duration: 1.15 + ((index * 17) % 76) / 100,
+  scale: 0.55 + ((index * 29) % 51) / 100,
+  opacity: 0.5 + ((index * 13) % 39) / 100,
   drift: -5 - ((index * 19) % 12),
 }));
 
@@ -66,8 +70,8 @@ export default function DigitalWindow() {
   const frostTextureRef = useRef<HTMLImageElement | null>(null);
   const pointerDownRef = useRef(false);
   const previousGestureRef = useRef<HandGesture>('none');
+  const victoryHoldRef = useRef(createVictoryHoldState());
   const effectIdRef = useRef(0);
-  const lastRainToggleRef = useRef(0);
   const lastLightningRef = useRef(0);
   const lastLightRef = useRef(0);
 
@@ -137,12 +141,22 @@ export default function DigitalWindow() {
   const handleHandSample = useCallback((sample: HandSample | null) => {
     setHand(sample);
 
+    const now = performance.now();
+    const victoryUpdate = advanceVictoryHold(
+      victoryHoldRef.current,
+      sample?.gesture === 'victory',
+      now,
+    );
+    victoryHoldRef.current = victoryUpdate.state;
+    if (victoryUpdate.toggled) {
+      setRainOn((current) => !current);
+    }
+
     if (!sample) {
       previousGestureRef.current = 'none';
       return;
     }
 
-    const now = performance.now();
     const previous = previousGestureRef.current;
 
     if (sample.gesture === 'point') {
@@ -165,15 +179,6 @@ export default function DigitalWindow() {
     ) {
       lastLightningRef.current = now;
       createLightning(sample.x);
-    }
-
-    if (
-      sample.gesture === 'victory' &&
-      previous !== 'victory' &&
-      now - lastRainToggleRef.current > 950
-    ) {
-      lastRainToggleRef.current = now;
-      setRainOn((current) => !current);
     }
 
     previousGestureRef.current = sample.gesture;
@@ -222,6 +227,7 @@ export default function DigitalWindow() {
     setLightPulses([]);
     setBolts([]);
     previousGestureRef.current = 'none';
+    victoryHoldRef.current = createVictoryHoldState();
     fogCanvasRef.current?.getContext('2d')?.clearRect(
       0,
       0,

@@ -83,11 +83,12 @@ button {
   position: absolute;
   top: -16vh;
   left: var(--rain-x);
-  width: clamp(2.5px, 0.28vw, 5px);
+  width: clamp(12px, 0.9vw, 18px);
   height: auto;
   max-width: none;
   opacity: 0;
-  filter: blur(0.15px) brightness(1.07);
+  filter: blur(0.12px) brightness(1.25);
+  mix-blend-mode: screen;
   transform-origin: center;
   animation-name: rain-fall;
   animation-duration: var(--rain-duration);
