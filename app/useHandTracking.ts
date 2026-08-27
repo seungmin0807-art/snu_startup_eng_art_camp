@@ -12,9 +12,20 @@ export type HandSample = {
   gesture: HandGesture;
 };
 
+export type TrackedHand = {
+  id: string;
+  handedness: 'Left' | 'Right' | 'Unknown';
+  center: { x: number; y: number };
+  scale: number;
+  pinchRatio: number;
+  openness: number;
+  landmarks: Array<{ x: number; y: number; z: number }>;
+};
+
 type HandTrackingOptions = {
   onSample: (sample: HandSample | null) => void;
   onBreath: (intensity: number) => void;
+  onHands?: (hands: TrackedHand[]) => void;
 };
 
 const distance = (a: NormalizedLandmark, b: NormalizedLandmark) =>
@@ -75,7 +86,7 @@ function friendlyCameraError(cause: unknown) {
   return cause instanceof Error ? cause.message : '카메라를 시작하지 못했어요.';
 }
 
-export function useHandTracking({ onSample, onBreath }: HandTrackingOptions) {
+export function useHandTracking({ onSample, onBreath, onHands }: HandTrackingOptions) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackerRef = useRef<HandLandmarker | null>(null);
   const videoStreamRef = useRef<MediaStream | null>(null);
@@ -84,15 +95,15 @@ export function useHandTracking({ onSample, onBreath }: HandTrackingOptions) {
   const frameRef = useRef<number | null>(null);
   const pinchRef = useRef(false);
   const smoothedRef = useRef<{ x: number; y: number } | null>(null);
-  const callbacksRef = useRef({ onSample, onBreath });
+  const callbacksRef = useRef({ onSample, onBreath, onHands });
   const requestIdRef = useRef(0);
   const [status, setStatus] = useState<TrackingStatus>('idle');
   const [error, setError] = useState('');
   const [microphoneReady, setMicrophoneReady] = useState(false);
 
   useEffect(() => {
-    callbacksRef.current = { onSample, onBreath };
-  }, [onSample, onBreath]);
+    callbacksRef.current = { onSample, onBreath, onHands };
+  }, [onSample, onBreath, onHands]);
 
   const stop = useCallback(() => {
     requestIdRef.current += 1;
@@ -109,6 +120,7 @@ export function useHandTracking({ onSample, onBreath }: HandTrackingOptions) {
     pinchRef.current = false;
     smoothedRef.current = null;
     callbacksRef.current.onSample(null);
+    callbacksRef.current.onHands?.([]);
     setMicrophoneReady(false);
     setStatus('idle');
   }, []);
@@ -131,8 +143,8 @@ export function useHandTracking({ onSample, onBreath }: HandTrackingOptions) {
         getUserMediaWithTimeout({
           video: {
             facingMode: 'user',
-            width: { ideal: 640 },
-            height: { ideal: 480 },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
           },
           audio: false,
         }, 15_000),
@@ -150,7 +162,7 @@ export function useHandTracking({ onSample, onBreath }: HandTrackingOptions) {
           delegate: 'CPU',
         },
         runningMode: 'VIDEO',
-        numHands: 1,
+        numHands: 2,
         minHandDetectionConfidence: 0.6,
         minHandPresenceConfidence: 0.6,
         minTrackingConfidence: 0.5,
@@ -191,6 +203,50 @@ export function useHandTracking({ onSample, onBreath }: HandTrackingOptions) {
           lastDetectionAt = timestamp;
           const result = activeTracker.detectForVideo(video, timestamp);
           const landmarks = result.landmarks[0];
+
+          const trackedHands = result.landmarks.map((handLandmarks, index) => {
+            const mirroredLandmarks = handLandmarks.map((landmark) => ({
+              x: 1 - landmark.x,
+              y: landmark.y,
+              z: landmark.z,
+            }));
+            const palmIndices = [0, 5, 9, 13, 17];
+            const center = palmIndices.reduce(
+              (point, landmarkIndex) => ({
+                x: point.x + mirroredLandmarks[landmarkIndex].x / palmIndices.length,
+                y: point.y + mirroredLandmarks[landmarkIndex].y / palmIndices.length,
+              }),
+              { x: 0, y: 0 },
+            );
+            const scale = Math.max(
+              distance(handLandmarks[0], handLandmarks[9]),
+              distance(handLandmarks[5], handLandmarks[17]),
+              0.025,
+            );
+            const pinchRatio = distance(handLandmarks[4], handLandmarks[8]) / scale;
+            const extendedCount = [
+              fingerExtended(handLandmarks, 8, 6),
+              fingerExtended(handLandmarks, 12, 10),
+              fingerExtended(handLandmarks, 16, 14),
+              fingerExtended(handLandmarks, 20, 18),
+            ].filter(Boolean).length;
+            const category = result.handedness[index]?.[0]?.categoryName;
+            const handedness = category === 'Left' || category === 'Right'
+              ? category
+              : 'Unknown';
+
+            return {
+              id: `${handedness}-${index}`,
+              handedness,
+              center,
+              scale,
+              pinchRatio,
+              openness: extendedCount / 4,
+              landmarks: mirroredLandmarks,
+            } satisfies TrackedHand;
+          });
+
+          callbacksRef.current.onHands?.(trackedHands);
 
           if (landmarks) {
             const handScale = Math.max(distance(landmarks[0], landmarks[9]), 0.03);
@@ -247,6 +303,7 @@ export function useHandTracking({ onSample, onBreath }: HandTrackingOptions) {
             });
           } else {
             callbacksRef.current.onSample(null);
+            callbacksRef.current.onHands?.([]);
             smoothedRef.current = null;
           }
         }

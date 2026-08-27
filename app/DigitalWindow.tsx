@@ -14,15 +14,18 @@ import {
 import {
   type HandGesture,
   type HandSample,
+  type TrackedHand,
   useHandTracking,
 } from './useHandTracking';
 import {
   advanceVictoryHold,
   createVictoryHoldState,
 } from './victoryHold';
+import Playground from './Playground';
 
 type PositionedEffect = { id: number; x: number; y: number };
 type LightningStrike = { id: number; x: number };
+type ExperienceMode = 'landing' | 'window' | 'playground';
 
 const rainDrops = Array.from({ length: 104 }, (_, index) => ({
   id: index,
@@ -58,8 +61,9 @@ function drawTextureCover(
 }
 
 export default function DigitalWindow() {
-  const [opened, setOpened] = useState(false);
+  const [mode, setMode] = useState<ExperienceMode>('landing');
   const [hand, setHand] = useState<HandSample | null>(null);
+  const [trackedHands, setTrackedHands] = useState<TrackedHand[]>([]);
   const [rainOn, setRainOn] = useState(false);
   const [growth, setGrowth] = useState(0.22);
   const [lightPulses, setLightPulses] = useState<PositionedEffect[]>([]);
@@ -74,6 +78,8 @@ export default function DigitalWindow() {
   const effectIdRef = useRef(0);
   const lastLightningRef = useRef(0);
   const lastLightRef = useRef(0);
+  const modeRef = useRef<ExperienceMode>('landing');
+  const opened = mode !== 'landing';
 
   const syncFogCanvas = useCallback(() => {
     const canvas = fogCanvasRef.current;
@@ -135,10 +141,12 @@ export default function DigitalWindow() {
   }, []);
 
   const handleBreath = useCallback((intensity: number) => {
+    if (modeRef.current !== 'window') return;
     addFrost(intensity);
   }, [addFrost]);
 
   const handleHandSample = useCallback((sample: HandSample | null) => {
+    if (modeRef.current !== 'window') return;
     setHand(sample);
 
     const now = performance.now();
@@ -184,12 +192,22 @@ export default function DigitalWindow() {
     previousGestureRef.current = sample.gesture;
   }, [createLight, createLightning, wipeFog]);
 
+  const handleTrackedHands = useCallback((hands: TrackedHand[]) => {
+    if (modeRef.current !== 'playground') return;
+    setTrackedHands(hands);
+  }, []);
+
   const {
     videoRef,
     status: cameraStatus,
+    error: cameraError,
     start: startCamera,
     stop: stopCamera,
-  } = useHandTracking({ onSample: handleHandSample, onBreath: handleBreath });
+  } = useHandTracking({
+    onSample: handleHandSample,
+    onBreath: handleBreath,
+    onHands: handleTrackedHands,
+  });
 
   useEffect(() => {
     const texture = new window.Image();
@@ -215,17 +233,21 @@ export default function DigitalWindow() {
     const onEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || !opened) return;
       stopCamera();
-      setOpened(false);
+      modeRef.current = 'landing';
+      setMode('landing');
       setHand(null);
+      setTrackedHands([]);
     };
     window.addEventListener('keydown', onEscape);
     return () => window.removeEventListener('keydown', onEscape);
   }, [opened, stopCamera]);
 
-  const openWindow = () => {
+  const startExperience = (nextMode: Exclude<ExperienceMode, 'landing'>) => {
     setRainOn(false);
     setLightPulses([]);
     setBolts([]);
+    setHand(null);
+    setTrackedHands([]);
     previousGestureRef.current = 'none';
     victoryHoldRef.current = createVictoryHoldState();
     fogCanvasRef.current?.getContext('2d')?.clearRect(
@@ -234,9 +256,13 @@ export default function DigitalWindow() {
       fogCanvasRef.current.width,
       fogCanvasRef.current.height,
     );
-    setOpened(true);
+    modeRef.current = nextMode;
+    setMode(nextMode);
     void startCamera();
   };
+
+  const openWindow = () => startExperience('window');
+  const openPlayground = () => startExperience('playground');
 
   const pointFromEvent = (event: ReactPointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -247,7 +273,7 @@ export default function DigitalWindow() {
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!opened || (event.target as HTMLElement).closest('button')) return;
+    if (mode !== 'window' || (event.target as HTMLElement).closest('button')) return;
     if (cameraStatus === 'idle' || cameraStatus === 'error') void startCamera();
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerDownRef.current = true;
@@ -257,7 +283,7 @@ export default function DigitalWindow() {
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!opened || !pointerDownRef.current) return;
+    if (mode !== 'window' || !pointerDownRef.current) return;
     const point = pointFromEvent(event);
     wipeFog(point.x, point.y);
   };
@@ -267,7 +293,7 @@ export default function DigitalWindow() {
   };
 
   const onSceneKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (!opened) return;
+    if (mode !== 'window') return;
     if (event.key.toLowerCase() === 'r') setRainOn((current) => !current);
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -279,13 +305,15 @@ export default function DigitalWindow() {
     '--plant-scale': 0.46 + growth * 0.68,
   } as CSSProperties;
 
-  const windActive = opened && hand?.gesture === 'open';
+  const windActive = mode === 'window' && hand?.gesture === 'open';
 
   return (
     <main
       className={[
         'forest-app',
         opened ? 'is-open' : '',
+        mode === 'window' ? 'is-window' : '',
+        mode === 'playground' ? 'is-playground' : '',
         rainOn ? 'rain-active' : '',
         windActive ? 'wind-active' : '',
       ].filter(Boolean).join(' ')}
@@ -301,21 +329,25 @@ export default function DigitalWindow() {
         onKeyDown={onSceneKeyDown}
         tabIndex={0}
         role="application"
-        aria-label="손동작과 입김에 반응하는 숲 창문"
+        aria-label={mode === 'playground'
+          ? '카메라 위에서 빛의 활을 당겨 쏘는 플레이그라운드'
+          : '손동작과 입김에 반응하는 숲 창문'}
       >
-        <video
-          className="forest-background"
-          src="/media/forest-window.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          disablePictureInPicture
-          aria-hidden="true"
-        />
+        {mode !== 'playground' && (
+          <video
+            className="forest-background"
+            src="/media/forest-window.mp4"
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            disablePictureInPicture
+            aria-hidden="true"
+          />
+        )}
 
-        {lightPulses.map((pulse) => (
+        {mode === 'window' && lightPulses.map((pulse) => (
           <img
             key={pulse.id}
             className="light-pulse"
@@ -327,7 +359,7 @@ export default function DigitalWindow() {
           />
         ))}
 
-        {rainOn && (
+        {mode === 'window' && rainOn && (
           <div className="rain-field" aria-hidden="true">
             {rainDrops.map((drop) => ({
               ...drop,
@@ -352,14 +384,14 @@ export default function DigitalWindow() {
           </div>
         )}
 
-        {windActive && (
+        {mode === 'window' && windActive && (
           <div className="wind-raster-layer" aria-hidden="true">
             <img className="wind-raster wind-raster-a" src="/media/wind.png" alt="" draggable={false} />
             <img className="wind-raster wind-raster-b" src="/media/wind.png" alt="" draggable={false} />
           </div>
         )}
 
-        {bolts.map((bolt) => (
+        {mode === 'window' && bolts.map((bolt) => (
           <img
             key={bolt.id}
             className="lightning-raster"
@@ -371,21 +403,46 @@ export default function DigitalWindow() {
           />
         ))}
 
-        <img className="plant-raster" src="/media/plant-growth.png" alt="" draggable={false} aria-hidden="true" />
-        <canvas ref={fogCanvasRef} className="frost-canvas" aria-hidden="true" />
-        <video ref={videoRef} className="camera-source" playsInline muted aria-hidden="true" />
+        {mode === 'window' && (
+          <img className="plant-raster" src="/media/plant-growth.png" alt="" draggable={false} aria-hidden="true" />
+        )}
+        <canvas
+          ref={fogCanvasRef}
+          className={mode === 'window' ? 'frost-canvas' : 'frost-canvas is-hidden'}
+          aria-hidden="true"
+        />
+        <video
+          ref={videoRef}
+          className={mode === 'playground' ? 'playground-camera' : 'camera-source'}
+          playsInline
+          muted
+          aria-hidden="true"
+        />
+        {mode === 'playground' && (
+          <Playground
+            cameraStatus={cameraStatus}
+            cameraError={cameraError}
+            hands={trackedHands}
+          />
+        )}
         <span className="sr-only" aria-live="polite">{cameraStatus === 'active' ? '손동작 인식 중' : ''}</span>
 
-        {!opened && (
+        {mode === 'landing' && (
           <section className="welcome-screen" aria-labelledby="welcome-title">
             <div className="welcome-brand"><i /> MY WINDOW</div>
             <div className="welcome-copy">
               <p>PERSONAL FOREST WINDOW</p>
               <h1 id="welcome-title">원하는 날씨를<br /><em>손끝으로 만드는 숲.</em></h1>
-              <button type="button" onClick={openWindow}>
-                <strong>OPEN THIS WINDOW</strong>
-                <small>카메라와 마이크가 바로 시작됩니다</small>
-              </button>
+              <div className="welcome-actions">
+                <button type="button" onClick={openWindow}>
+                  <strong>OPEN THIS WINDOW</strong>
+                  <small>숲의 날씨를 손동작으로 만듭니다</small>
+                </button>
+                <button type="button" className="playground-entry" onClick={openPlayground}>
+                  <strong>ENTER PLAYGROUND</strong>
+                  <small>카메라 위에서 빛의 활을 당겨 쏩니다</small>
+                </button>
+              </div>
             </div>
           </section>
         )}

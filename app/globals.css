@@ -174,6 +174,10 @@ button {
   pointer-events: none;
 }
 
+.frost-canvas.is-hidden {
+  display: none;
+}
+
 .camera-source,
 .sr-only {
   position: absolute !important;
@@ -270,6 +274,58 @@ button {
   transition: transform 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
 }
 
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: clamp(30px, 5.2vh, 56px);
+}
+
+.welcome-actions .welcome-copy button,
+.welcome-actions button {
+  margin-top: 0;
+}
+
+.welcome-copy .playground-entry {
+  position: relative;
+  overflow: hidden;
+  color: rgba(236, 250, 255, 0.94);
+  border-color: rgba(134, 225, 255, 0.38);
+  background:
+    linear-gradient(118deg, rgba(39, 73, 111, 0.8), rgba(48, 31, 88, 0.7)),
+    rgba(7, 22, 33, 0.86);
+  box-shadow:
+    0 18px 54px rgba(0, 0, 0, 0.26),
+    inset 0 1px rgba(216, 250, 255, 0.13),
+    0 0 34px rgba(72, 194, 255, 0.09);
+}
+
+.welcome-copy .playground-entry::after {
+  content: "";
+  position: absolute;
+  inset: -70% -22%;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 72% 43%, rgba(104, 225, 255, 0.42), transparent 23%),
+    radial-gradient(circle at 34% 62%, rgba(135, 91, 255, 0.34), transparent 27%);
+  filter: blur(18px);
+  animation: playground-entry-glow 5.4s ease-in-out infinite alternate;
+}
+
+.welcome-copy .playground-entry:hover {
+  color: #fff;
+  background:
+    linear-gradient(118deg, rgba(47, 93, 136, 0.92), rgba(62, 38, 105, 0.84)),
+    rgba(7, 22, 33, 0.92);
+  box-shadow:
+    0 22px 64px rgba(0, 0, 0, 0.36),
+    0 0 42px rgba(79, 207, 255, 0.14);
+}
+
+.welcome-copy .playground-entry small {
+  color: rgba(220, 243, 255, 0.62);
+}
+
 .welcome-copy button:hover {
   transform: translateY(-2px);
   background: #f8faee;
@@ -295,6 +351,192 @@ button {
 
 .is-open .welcome-screen {
   display: none;
+}
+
+.playground-camera {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scaleX(-1);
+  background: #02060b;
+  filter: saturate(0.88) contrast(1.05) brightness(0.9);
+}
+
+.is-playground .forest-scene::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, transparent 42%, rgba(2, 7, 13, 0.3) 100%),
+    linear-gradient(180deg, rgba(2, 8, 15, 0.2), transparent 24%, transparent 72%, rgba(2, 8, 15, 0.32));
+  mix-blend-mode: multiply;
+}
+
+.playground-vfx {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  perspective: 900px;
+}
+
+.playground-mark {
+  position: absolute;
+  z-index: 48;
+  top: clamp(18px, 3.1vw, 42px);
+  left: clamp(18px, 3.1vw, 42px);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: rgba(228, 249, 255, 0.88);
+  text-shadow: 0 0 22px rgba(81, 206, 255, 0.56);
+}
+
+.playground-mark span,
+.playground-mark strong {
+  font-family: var(--font-geist-mono), monospace;
+  letter-spacing: 0.2em;
+}
+
+.playground-mark span {
+  font-size: 8px;
+  opacity: 0.58;
+}
+
+.playground-mark strong {
+  font-size: clamp(10px, 0.86vw, 13px);
+  font-weight: 620;
+}
+
+.bow-rig {
+  position: absolute;
+  z-index: 18;
+  inset: 0;
+  pointer-events: none;
+}
+
+.energy-bow,
+.nocked-energy-arrow,
+.energy-projectile,
+.screen-impact {
+  position: absolute;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  mix-blend-mode: screen;
+  will-change: transform, opacity, filter;
+}
+
+.energy-bow {
+  z-index: 20;
+  left: var(--bow-x);
+  top: var(--bow-y);
+  width: var(--bow-size);
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(var(--bow-angle)) scale(var(--bow-charge));
+  filter:
+    brightness(1.08)
+    drop-shadow(0 0 8px rgba(189, 245, 255, 0.92))
+    drop-shadow(0 0 28px rgba(53, 190, 255, 0.68));
+  animation: bow-materialize 260ms cubic-bezier(0.18, 0.88, 0.3, 1) forwards;
+}
+
+.nocked-energy-arrow {
+  z-index: 22;
+  left: var(--arrow-x);
+  top: var(--arrow-y);
+  width: var(--arrow-length);
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(var(--arrow-angle)) scale(var(--arrow-charge));
+  filter:
+    brightness(1.08)
+    drop-shadow(0 0 8px rgba(170, 243, 255, 0.85))
+    drop-shadow(0 0 22px rgba(47, 182, 255, 0.52));
+  animation: arrow-charge 220ms ease-out forwards;
+}
+
+.energy-projectile {
+  z-index: 30;
+  left: var(--projectile-x);
+  top: var(--projectile-y);
+  width: clamp(330px, 41vw, 760px);
+  opacity: var(--projectile-opacity);
+  transform: translate(-50%, -50%) rotate(var(--projectile-angle)) scale(var(--projectile-scale));
+  transform-origin: center;
+  filter:
+    brightness(1.24)
+    drop-shadow(0 0 8px rgba(207, 251, 255, 0.94))
+    drop-shadow(0 0 32px rgba(48, 188, 255, 0.72));
+}
+
+.energy-projectile.ballistic {
+  filter:
+    brightness(1.18)
+    drop-shadow(-16px 0 13px rgba(60, 193, 255, 0.58))
+    drop-shadow(0 0 24px rgba(65, 203, 255, 0.62));
+}
+
+.energy-projectile.camera-bound {
+  z-index: 38;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--projectile-angle))
+    perspective(640px)
+    rotateY(68deg)
+    scale(var(--projectile-scale));
+  filter:
+    brightness(1.48)
+    drop-shadow(0 0 10px rgba(232, 254, 255, 1))
+    drop-shadow(0 0 46px rgba(67, 199, 255, 0.92));
+}
+
+.screen-impact {
+  z-index: 44;
+  left: var(--impact-x);
+  top: var(--impact-y);
+  width: clamp(420px, 70vmin, 980px);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2) rotate(-3deg);
+  transform-origin: center;
+  filter:
+    brightness(1.04)
+    contrast(1.08)
+    drop-shadow(0 0 24px rgba(122, 224, 255, 0.46));
+  animation: screen-impact-hold 5s cubic-bezier(0.2, 0.82, 0.2, 1) both;
+}
+
+.playground-hint {
+  position: absolute;
+  z-index: 50;
+  left: 50%;
+  bottom: clamp(22px, 4vh, 46px);
+  margin: 0;
+  padding: 9px 14px;
+  border: 1px solid rgba(175, 234, 255, 0.2);
+  border-radius: 999px;
+  color: rgba(231, 249, 255, 0.82);
+  background: rgba(4, 15, 24, 0.42);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06), 0 8px 32px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px) saturate(1.2);
+  transform: translateX(-50%);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: clamp(9px, 0.75vw, 11px);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.playground-hint.is-error {
+  color: #ffe6e6;
+  border-color: rgba(255, 166, 166, 0.32);
+  background: rgba(55, 12, 19, 0.58);
 }
 
 @keyframes light-bloom {
@@ -383,6 +625,57 @@ button {
   }
 }
 
+@keyframes playground-entry-glow {
+  from { transform: translate3d(-3%, 2%, 0) scale(0.95); }
+  to { transform: translate3d(4%, -3%, 0) scale(1.08); }
+}
+
+@keyframes bow-materialize {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--bow-angle)) scale(0.52);
+    filter: brightness(2.1) blur(7px) drop-shadow(0 0 42px rgba(97, 218, 255, 0.95));
+  }
+  48% { opacity: 1; }
+  100% {
+    opacity: 0.98;
+    transform: translate(-50%, -50%) rotate(var(--bow-angle)) scale(var(--bow-charge));
+  }
+}
+
+@keyframes arrow-charge {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--arrow-angle)) scaleX(0.3) scaleY(0.72);
+    filter: brightness(2.2) blur(5px) drop-shadow(0 0 36px rgba(80, 211, 255, 0.96));
+  }
+  to {
+    opacity: 0.96;
+    transform: translate(-50%, -50%) rotate(var(--arrow-angle)) scale(var(--arrow-charge));
+  }
+}
+
+@keyframes screen-impact-hold {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2) rotate(-3deg);
+    filter: brightness(2.2) blur(4px) drop-shadow(0 0 52px rgba(137, 232, 255, 0.96));
+  }
+  4% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06) rotate(0deg);
+  }
+  10% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+  86% { opacity: 0.9; }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.02) rotate(0deg);
+  }
+}
+
 @media (max-width: 720px) {
   .welcome-screen {
     padding: 24px 20px 30px;
@@ -402,6 +695,30 @@ button {
 
   .welcome-copy button {
     width: 100%;
+  }
+
+  .welcome-actions {
+    width: 100%;
+  }
+
+  .playground-mark {
+    top: 18px;
+    left: 18px;
+  }
+
+  .playground-hint {
+    bottom: 20px;
+    max-width: calc(100vw - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .energy-projectile {
+    width: min(76vw, 520px);
+  }
+
+  .screen-impact {
+    width: min(104vw, 720px);
   }
 
   .plant-raster {
@@ -429,6 +746,15 @@ button {
 
   .lightning-raster {
     animation-duration: 780ms;
+  }
+
+  .energy-bow,
+  .nocked-energy-arrow {
+    animation-duration: 120ms;
+  }
+
+  .screen-impact {
+    animation-duration: 5s;
   }
 
   .plant-raster,
